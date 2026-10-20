@@ -1,0 +1,1 @@
+[{"Name":"shop","Status":"running(2)","ConfigFiles":"/shop/compose.yaml"},{"Name":"tools","Status":"running(1), exited(1)","ConfigFiles":"/tools/compose.yaml"}]

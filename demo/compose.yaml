@@ -1,0 +1,31 @@
+# The containers of the demo, `docker compose -p docker-nvim-demo down -v` removes them
+name: docker-nvim-demo
+services:
+  web:
+    image: nginx:alpine
+    ports: ["8088:80"]
+  api:
+    image: alpine:3
+    command:
+      - sh
+      - -c
+      - |
+        i=0
+        while true; do
+          i=$$((i + 1))
+          echo "{\"level\":\"info\",\"msg\":\"GET /orders/$$i 200\",\"latency_ms\":$$((i % 40 + 3))}"
+          sleep 1
+        done
+    volumes: [data:/data]
+  cache:
+    image: redis:7-alpine
+    healthcheck:
+      # Never healthy, for the demo of diagnostics
+      test: ["CMD", "false"]
+      interval: 2s
+      retries: 1
+  migrate:
+    image: alpine:3
+    command: ["sh", "-c", "echo 'relation \"orders\" does not exist' >&2; exit 1"]
+volumes:
+  data:

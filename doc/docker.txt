@@ -1,0 +1,157 @@
+*docker.txt*  Manage Docker like buffers
+
+==============================================================================
+CONTENTS                                                     *docker-contents*
+
+  1. Introduction ......................................... |docker.nvim|
+  2. Commands ............................................. |docker-commands|
+  3. Buffers .............................................. |docker-buffers|
+  4. Keymaps .............................................. |docker-keymaps|
+  5. Editing .............................................. |docker-editing|
+  6. Configuration ........................................ |docker-config|
+  7. Health ............................................... |docker-health|
+
+==============================================================================
+1. Introduction                                     *docker.nvim* *docker*
+
+docker.nvim shows containers, images, volumes, networks and compose projects
+in buffers, with their logs, `docker inspect` and shells. Delete a line and
+|:w| to remove a container, an image, a volume, a network or to take a
+compose project down.
+
+Requirements: Neovim >= 0.11 and `docker` in $PATH, `docker compose` for
+compose projects.
+
+|setup()| is optional, the |:Docker| command and the `docker://` buffers work
+without it.
+
+==============================================================================
+2. Commands                                                  *docker-commands*
+
+                                                                     *:Docker*
+:Docker get {kind} [{filter}={value}]...
+    Open the list of {kind}: `containers`, `images`, `volumes`, `networks`
+    or `compose` (projects), filtered with `docker … --filter` filters. The
+    filter `project={name}` is the label of the compose project {name}.
+    Example: `:Docker get containers status=exited project=shop`
+
+:Docker context [{context}]
+    Switch the docker context used by new buffers, only in docker.nvim:
+    docker's current context is not changed. Without {context}, select one.
+
+==============================================================================
+3. Buffers                                                    *docker-buffers*
+
+Every view is a buffer named: >
+    docker://[context/{context}/]{kind}[/{name}[/{subresource}]][?{params}]
+<
+Without `context/{context}/` the buffer is bound to the current context: it is
+opened as the buffer of that context, so it keeps operating on the same daemon
+after `:Docker context`. `docker://` lists the kinds.
+
+    docker://containers?{filters}             containers, `docker ps --all`
+    docker://images?{filters}                 images
+    docker://volumes?{filters}                volumes
+    docker://networks?{filters}               networks
+    docker://compose                          compose projects
+    docker://{kind}/{name}                    `docker inspect`, read-only
+    docker://containers/{name}/logs           logs of a container
+    docker://compose/{name}/logs              logs of a compose project
+    docker://containers/{name}/exec           a shell in a container
+    docker://images/{id}/history              the layers of an image
+
+Logs take `?follow`, `?tail={lines}` and `?since={duration}`, e.g. >
+    :e docker://containers/web-1/logs?follow&since=10m
+<Shells take `?cmd={command}`, |docker-config| `exec_command` by default.
+
+Every jump is an |:edit| in the current window, so |CTRL-O|, |CTRL-^|,
+|CTRL-T|, 'hidden' and |:bdelete| work as with files. Loading a buffer that
+is already loaded (|:edit|) reloads it.
+
+==============================================================================
+4. Keymaps                                                    *docker-keymaps*
+
+<CR>      Drill down: a container's logs, an image's history, the containers
+          of a volume, a network or a compose project, the list of a kind.
+gd        Go to what the cell under the cursor refers to, as |CTRL-]|.
+-         The parent buffer: an item -> its list -> the unfiltered list (the
+          compose projects for the containers of a project) -> the kinds.
+R         Reload, the cursor stays on the same item.
+gw        Toggle reloading the list every `refresh_interval`, the winbar
+          shows ⟳ while watching. Rows a reload changed are highlighted.
+gl gL     Show / follow the logs, |CTRL-C| stops following.
+gs        Open a shell in the container (`docker exec`).
+gra       Operations on the item under the cursor, or in Visual mode on the
+          selected items: start, stop, restart, pause, unpause, kill, remove
+          containers; start, stop, restart, down compose projects; pull,
+          remove images; remove volumes and networks. Disruptive ones are
+          confirmed, naming the context.
+g?        Show the help.
+
+                                                          *docker-tagfunc*
+'tagfunc' resolves the cell under the cursor: |CTRL-]| on a container's
+IMAGE lists the image, on its PROJECT the containers of the project, on a
+compose project its containers, anything else goes to its `docker inspect`.
+|CTRL-T| jumps back, |CTRL-W_]| opens the jump in a split.
+
+                                                      *docker-diagnostics*
+Unhealthy, dead, restarting and failed (non-zero exit code) containers are
+|vim.diagnostic|s: |]d| jumps to the next one, |CTRL-W_d| shows why.
+
+==============================================================================
+5. Editing                                                    *docker-editing*
+
+In lists, delete lines and |:w| to remove the items: `docker rm --force` for
+containers, `docker rmi` for images (by tag, so an image with several tags is
+only untagged), `docker volume rm`, `docker network rm`, and `docker compose
+down` for compose projects. |:w| confirms, naming the context, |:w!| does not.
+The deleted lines stay visible until written. Cells cannot be edited.
+
+Logs can be edited, e.g. `:%!jq -r .msg`, `:w {file}` saves them.
+
+==============================================================================
+6. Configuration                                               *docker-config*
+
+The defaults: >lua
+    require("docker").setup({
+      keymaps = {
+        drill_down = "<cr>",
+        inspect = "gd",
+        parent = "-",
+        refresh = "R",
+        watch = "gw",
+        show_logs = "gl",
+        follow_logs = "gL",
+        exec = "gs",
+        operations = "gra",
+        help = "g?",
+      },
+      -- How often watched lists reload, in milliseconds, false to disable
+      refresh_interval = 10000,
+      -- The command gs runs in containers
+      exec_command = "sh",
+      logs = {
+        tail = 1000, -- Lines to fetch, -1 for all
+        max_lines = 10000, -- Lines kept while following, -1 for all
+      },
+      highlights = {},
+    })
+<
+                                                          *docker-highlights*
+Highlight groups, linked to the colorscheme's by default:
+    DockerBody        rows (Normal)
+    DockerRunning     running (Normal)
+    DockerPending     starting, paused, restarting (DiagnosticWarn)
+    DockerFailed      unhealthy, failed, dead (DiagnosticError)
+    DockerSucceeded   exited with 0, untagged images (Comment)
+    DockerHeader      the header in the winbar (Title)
+    DockerDeleted     deleted lines, until written (DiffDelete)
+    DockerChanged     rows a watched reload changed (DiffChange)
+
+==============================================================================
+7. Health                                                       *docker-health*
+
+`:checkhealth docker` checks the Neovim version, docker, the current context,
+whether its daemon is reachable, and docker compose.
+
+ vim:tw=78:ts=8:ft=help:norl:

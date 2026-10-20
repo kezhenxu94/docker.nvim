@@ -1,0 +1,2 @@
+{"ID":"1e5f3c5b981a","CreatedSince":"3 weeks ago","CreatedBy":"CMD [\"nginx\" \"-g\" \"daemon off;\"]","Size":"0B","Comment":"buildkit.dockerfile.v0"}
+{"ID":"<missing>","CreatedSince":"3 weeks ago","CreatedBy":"EXPOSE map[80/tcp:{}]","Size":"0B","Comment":"buildkit.dockerfile.v0"}
