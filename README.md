@@ -10,10 +10,10 @@ For Kubernetes, see [kube.nvim](https://github.com/kezhenxu94/kube.nvim), the sa
 
 Requirements: Neovim >= 0.11 and `docker` in `$PATH` (`docker compose` for compose projects). No other plugin dependencies.
 
-With [lazy.nvim](https://github.com/folke/lazy.nvim):
+With Neovim's built-in plugin manager (`:help vim.pack`, Neovim >= 0.12):
 
 ```lua
-{ "kezhenxu94/docker.nvim" }
+vim.pack.add({ "https://github.com/kezhenxu94/docker.nvim" })
 ```
 
 `setup()` is optional, call it only to change the [configuration](#configuration). Run `:checkhealth docker` to check docker and the daemon.
