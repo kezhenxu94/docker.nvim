@@ -1,0 +1,14 @@
+:Docker	docker.txt	/*:Docker*
+docker	docker.txt	/*docker*
+docker-buffers	docker.txt	/*docker-buffers*
+docker-commands	docker.txt	/*docker-commands*
+docker-config	docker.txt	/*docker-config*
+docker-contents	docker.txt	/*docker-contents*
+docker-diagnostics	docker.txt	/*docker-diagnostics*
+docker-editing	docker.txt	/*docker-editing*
+docker-health	docker.txt	/*docker-health*
+docker-highlights	docker.txt	/*docker-highlights*
+docker-keymaps	docker.txt	/*docker-keymaps*
+docker-tagfunc	docker.txt	/*docker-tagfunc*
+docker.nvim	docker.txt	/*docker.nvim*
+docker.txt	docker.txt	/*docker.txt*
