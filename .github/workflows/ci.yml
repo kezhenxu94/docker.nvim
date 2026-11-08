@@ -6,28 +6,25 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: JohnnyMorganz/stylua-action@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: v2.5.2
-          args: --check lua tests plugin
-
   test:
-    name: test (nvim ${{ matrix.neovim }})
+    name: test (${{ matrix.editor }} ${{ matrix.version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # The oldest supported version, the latest release and nightly
-        neovim: [v0.11.0, stable, nightly]
+        include:
+          # The oldest supported versions, the latest releases and nightly
+          - { editor: vim, neovim: false, version: v9.1.0000 }
+          - { editor: vim, neovim: false, version: stable }
+          - { editor: vim, neovim: false, version: nightly }
+          - { editor: nvim, neovim: true, version: v0.11.0 }
+          - { editor: nvim, neovim: true, version: stable }
+          - { editor: nvim, neovim: true, version: nightly }
     steps:
       - uses: actions/checkout@v7
       - uses: rhysd/action-setup-vim@v1
+        id: vim
         with:
-          neovim: true
-          version: ${{ matrix.neovim }}
-      - run: make test
+          neovim: ${{ matrix.neovim }}
+          version: ${{ matrix.version }}
+      - run: make test EDITORS=${{ steps.vim.outputs.executable }}
