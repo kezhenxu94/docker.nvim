@@ -6,9 +6,14 @@ docker-config	docker.txt	/*docker-config*
 docker-contents	docker.txt	/*docker-contents*
 docker-diagnostics	docker.txt	/*docker-diagnostics*
 docker-editing	docker.txt	/*docker-editing*
-docker-health	docker.txt	/*docker-health*
 docker-highlights	docker.txt	/*docker-highlights*
 docker-keymaps	docker.txt	/*docker-keymaps*
-docker-tagfunc	docker.txt	/*docker-tagfunc*
+docker-tags	docker.txt	/*docker-tags*
 docker.nvim	docker.txt	/*docker.nvim*
 docker.txt	docker.txt	/*docker.txt*
+g:docker_exec_command	docker.txt	/*g:docker_exec_command*
+g:docker_highlights	docker.txt	/*g:docker_highlights*
+g:docker_keymaps	docker.txt	/*g:docker_keymaps*
+g:docker_logs_max_lines	docker.txt	/*g:docker_logs_max_lines*
+g:docker_logs_tail	docker.txt	/*g:docker_logs_tail*
+g:docker_refresh_interval	docker.txt	/*g:docker_refresh_interval*

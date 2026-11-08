@@ -9,7 +9,6 @@ CONTENTS                                                     *docker-contents*
   4. Keymaps .............................................. |docker-keymaps|
   5. Editing .............................................. |docker-editing|
   6. Configuration ........................................ |docker-config|
-  7. Health ............................................... |docker-health|
 
 ==============================================================================
 1. Introduction                                     *docker.nvim* *docker*
@@ -19,11 +18,11 @@ in buffers, with their logs, `docker inspect` and shells. Delete a line and
 |:w| to remove a container, an image, a volume, a network or to take a
 compose project down.
 
-Requirements: Neovim >= 0.11 and `docker` in $PATH, `docker compose` for
-compose projects.
+Requirements: Vim >= 9.1 or Neovim >= 0.11, and `docker` in $PATH,
+`docker compose` for compose projects.
 
-|setup()| is optional, the |:Docker| command and the `docker://` buffers work
-without it.
+Nothing to set up, the |:Docker| command and the `docker://` buffers are
+defined when the plugin is loaded, see |docker-config| to change the defaults.
 
 ==============================================================================
 2. Commands                                                  *docker-commands*
@@ -62,11 +61,14 @@ after `:Docker context`. `docker://` lists the kinds.
 
 Logs take `?follow`, `?tail={lines}` and `?since={duration}`, e.g. >
     :e docker://containers/web-1/logs?follow&since=10m
-<Shells take `?cmd={command}`, |docker-config| `exec_command` by default.
+<Shells take `?cmd={command}`, |g:docker_exec_command| by default.
 
 Every jump is an |:edit| in the current window, so |CTRL-O|, |CTRL-^|,
 |CTRL-T|, 'hidden' and |:bdelete| work as with files. Loading a buffer that
 is already loaded (|:edit|) reloads it.
+
+Lists show their header at the top of the window: in the 'winbar' in Neovim,
+in the |WinBar| menu in Vim.
 
 ==============================================================================
 4. Keymaps                                                    *docker-keymaps*
@@ -77,8 +79,9 @@ gd        Go to what the cell under the cursor refers to, as |CTRL-]|.
 -         The parent buffer: an item -> its list -> the unfiltered list (the
           compose projects for the containers of a project) -> the kinds.
 R         Reload, the cursor stays on the same item.
-gw        Toggle reloading the list every `refresh_interval`, the winbar
-          shows ⟳ while watching. Rows a reload changed are highlighted.
+gw        Toggle reloading the list every |g:docker_refresh_interval|, the
+          header shows ⟳ while watching. Rows a reload changed are
+          highlighted.
 gl gL     Show / follow the logs, |CTRL-C| stops following.
 gs        Open a shell in the container (`docker exec`).
 gra       Operations on the item under the cursor, or in Visual mode on the
@@ -88,15 +91,17 @@ gra       Operations on the item under the cursor, or in Visual mode on the
           confirmed, naming the context.
 g?        Show the help.
 
-                                                          *docker-tagfunc*
-'tagfunc' resolves the cell under the cursor: |CTRL-]| on a container's
-IMAGE lists the image, on its PROJECT the containers of the project, on a
+                                                          *docker-tags*
+|CTRL-]| jumps to what the cell under the cursor refers to: on a container's
+IMAGE it lists the image, on its PROJECT the containers of the project, on a
 compose project its containers, anything else goes to its `docker inspect`.
-|CTRL-T| jumps back, |CTRL-W_]| opens the jump in a split.
+The jumps are pushed on the |tag-stack|: |CTRL-T| jumps back,
+|CTRL-W_]| opens the jump in a split.
 
                                                       *docker-diagnostics*
-Unhealthy, dead, restarting and failed (non-zero exit code) containers are
-|vim.diagnostic|s: |]d| jumps to the next one, |CTRL-W_d| shows why.
+Unhealthy, dead, restarting and failed (non-zero exit code) containers have a
+sign: `]d` jumps to the next one, `[d` to the previous one, `CTRL-W d` shows
+why.
 
 ==============================================================================
 5. Editing                                                    *docker-editing*
@@ -112,46 +117,57 @@ Logs can be edited, e.g. `:%!jq -r .msg`, `:w {file}` saves them.
 ==============================================================================
 6. Configuration                                               *docker-config*
 
-The defaults: >lua
-    require("docker").setup({
-      keymaps = {
-        drill_down = "<cr>",
-        inspect = "gd",
-        parent = "-",
-        refresh = "R",
-        watch = "gw",
-        show_logs = "gl",
-        follow_logs = "gL",
-        exec = "gs",
-        operations = "gra",
-        help = "g?",
-      },
-      -- How often watched lists reload, in milliseconds, false to disable
-      refresh_interval = 10000,
-      -- The command gs runs in containers
-      exec_command = "sh",
-      logs = {
-        tail = 1000, -- Lines to fetch, -1 for all
-        max_lines = 10000, -- Lines kept while following, -1 for all
-      },
-      highlights = {},
-    })
+Set these variables before a docker buffer is opened, the defaults: >vim
+    " Merged with the defaults, so only the changed ones need to be set
+    let g:docker_keymaps = {
+          \ 'drill_down': '<CR>',
+          \ 'inspect': 'gd',
+          \ 'parent': '-',
+          \ 'refresh': 'R',
+          \ 'watch': 'gw',
+          \ 'show_logs': 'gl',
+          \ 'follow_logs': 'gL',
+          \ 'exec': 'gs',
+          \ 'operations': 'gra',
+          \ 'help': 'g?',
+          \ }
+    let g:docker_refresh_interval = 10000
+    let g:docker_exec_command = 'sh'
+    let g:docker_logs_tail = 1000
+    let g:docker_logs_max_lines = 10000
+    let g:docker_highlights = {}
 <
-                                                          *docker-highlights*
-Highlight groups, linked to the colorscheme's by default:
+                                                            *g:docker_keymaps*
+The keymaps of docker buffers, see |docker-keymaps|.
+
+                                                   *g:docker_refresh_interval*
+How often watched lists (`gw`) reload, in milliseconds, 0 to disable watching.
+
+                                                      *g:docker_exec_command*
+The command `gs` runs in containers.
+
+                                                          *g:docker_logs_tail*
+The number of lines of logs to fetch, -1 for all.
+
+                                                     *g:docker_logs_max_lines*
+The lines kept while following logs, the oldest are dropped, -1 for all.
+
+                                     *g:docker_highlights* *docker-highlights*
+Highlight overrides, the arguments of |:highlight| by group, e.g. >vim
+    let g:docker_highlights = {'DockerHeader': 'guifg=#df8e1d gui=bold'}
+<They are applied again after a |:colorscheme|. The groups, linked to the
+colorscheme's by default:
     DockerBody        rows (Normal)
     DockerRunning     running (Normal)
-    DockerPending     starting, paused, restarting (DiagnosticWarn)
-    DockerFailed      unhealthy, failed, dead (DiagnosticError)
+    DockerPending     starting, paused, restarting (DiagnosticWarn, or
+                      WarningMsg without it)
+    DockerFailed      unhealthy, failed, dead (DiagnosticError, or ErrorMsg
+                      without it)
     DockerSucceeded   exited with 0, untagged images (Comment)
-    DockerHeader      the header in the winbar (Title)
+    DockerHeader      the header of lists (Title), Neovim only: Vim shows
+                      the |WinBar| with |hl-ToolbarLine| and
+                      |hl-ToolbarButton|
     DockerDeleted     deleted lines, until written (DiffDelete)
     DockerChanged     rows a watched reload changed (DiffChange)
-
-==============================================================================
-7. Health                                                       *docker-health*
-
-`:checkhealth docker` checks the Neovim version, docker, the current context,
-whether its daemon is reachable, and docker compose.
 
  vim:tw=78:ts=8:ft=help:norl:
