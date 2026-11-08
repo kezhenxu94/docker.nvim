@@ -6,7 +6,7 @@ let s:rules = []
 
 " The functions stubbed by the tests are reset by RestoreStubs(), loaded first so that autoloading
 " does not replace the stubs
-runtime autoload/docker/util.vim
+runtime autoload/resource.vim
 
 function! Fixture(name) abort
   return join(readfile(s:fixtures . '/' . a:name), "\n")
@@ -70,8 +70,7 @@ endfunction
 function! WaitLoaded(...) abort
   let buf = bufnr()
   " The kinds are rendered without a job
-  call WaitFor({-> !empty(docker#buffer#get(buf)) && !docker#compat#job_running(docker#buffer#get(buf).loading_job)},
-        \ 'buffer to load', get(a:, 1, 5000))
+  call WaitFor({-> !empty(resource#get(buf)) && !resource#loading(buf)}, 'buffer to load', get(a:, 1, 5000))
   " Let the callbacks run
   sleep 20m
 endfunction
@@ -81,44 +80,46 @@ function! Open(name) abort
   call WaitLoaded()
 endfunction
 
-" Answer the prompts of docker#util#select with Answer(items, prompt), the index of the choice.
-" Returns the prompts: [{prompt, items}].
+" Answer the prompts of resource#select() with Answer(items, prompt), the index of the choice, -1
+" to cancel. Returns the prompts: [{prompt, items}].
 function! AnswerPrompts(Answer) abort
   let g:test_prompts = []
   let g:TestAnswer = a:Answer
-  function! docker#util#select(items, prompt) abort
-    call add(g:test_prompts, {'prompt': a:prompt, 'items': a:items})
-    return g:TestAnswer(a:items, a:prompt)
+  function! resource#select(items, opts, Callback) abort
+    let items = has_key(a:opts, 'format_item') ? map(copy(a:items), 'a:opts.format_item(v:val)') : a:items
+    call add(g:test_prompts, {'prompt': get(a:opts, 'prompt', ''), 'items': items})
+    let i = g:TestAnswer(items, get(a:opts, 'prompt', ''))
+    call a:Callback(i < 0 ? v:null : a:items[i], i < 0 ? v:null : i + 1)
   endfunction
   return g:test_prompts
 endfunction
 
-" Capture the messages of docker#util#notify: [{msg, level}].
+" Capture the messages of resource#notify(): [{msg, level}].
 function! CaptureNotify() abort
   let g:test_messages = []
-  function! docker#util#notify(msg, ...) abort
+  function! resource#notify(msg, ...) abort
     call add(g:test_messages, {'msg': a:msg, 'level': get(a:, 1, 'info')})
   endfunction
   return g:test_messages
 endfunction
 
 function! RestoreStubs() abort
-  runtime autoload/docker/util.vim
+  runtime autoload/resource.vim
 endfunction
 
 " Kill docker jobs and wipe every buffer, leaving an empty one.
 function! CleanBuffers() abort
   silent! %bwipeout!
-  call WaitFor({-> empty(docker#buffer#all())}, 'docker buffers to be cleaned up')
+  call WaitFor({-> empty(resource#buffers())}, 'docker buffers to be cleaned up')
 endfunction
 
 function! Lines() abort
   return getline(1, '$')
 endfunction
 
-" The status shown after the first line, see docker#buffer#set_status().
+" The status shown after a line, '' if none.
 function! Status() abort
-  return docker#compat#get_virt_text(bufnr(), 'status')
+  return get(resource#compat#status(bufnr()), 1, '')
 endfunction
 
 " Move the cursor to the first occurrence of text and press keys.

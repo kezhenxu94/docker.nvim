@@ -1,7 +1,7 @@
 " The docker commands. A context of '' is docker's current context.
 
 function! s:state_file() abort
-  return docker#compat#state_dir() . '/docker_state.json'
+  return resource#state_dir() . '/docker_state.json'
 endfunction
 
 " The context switched to with :Docker context, '' for docker's current context
@@ -22,15 +22,10 @@ function! docker#cli#cmd(context, args) abort
 endfunction
 
 " Run docker. Callback(stdout, code, stderr) is called when it is done, stdout is v:null on failure,
-" OnError(stderr) on failure. Returns the job, {} if docker cannot be run.
+" OnError(stderr) on failure, both may be v:null. Returns the job, {} if docker cannot be run.
 function! s:docker(context, args, Callback, OnError) abort
-  let cmd = docker#cli#cmd(a:context, a:args)
-  let job = docker#compat#job_start(cmd, {
-        \ 'on_exit': {code, out, err -> s:done(a:Callback, a:OnError, code, out, err)}})
-  if empty(job)
-    call docker#util#notify('Failed to run docker: ' . join(cmd), 'error')
-  endif
-  return job
+  return resource#job(docker#cli#cmd(a:context, a:args),
+        \ {'on_exit': {code, out, err -> s:done(a:Callback, a:OnError, code, out, err)}})
 endfunction
 
 function! s:done(Callback, OnError, code, out, err) abort
@@ -94,7 +89,7 @@ endfunction
 function! docker#cli#list(context, kind, filters, Callback, OnError) abort
   let args = copy(s:list[a:kind])
   for key in sort(keys(a:filters))
-    let value = docker#util#param_string(a:filters[key])
+    let value = resource#to_string(a:filters[key])
     let filter = key ==# 'project' ? 'label=com.docker.compose.project=' . value : key . '=' . value
     call extend(args, ['--filter', filter])
   endfor
@@ -109,13 +104,11 @@ function! docker#cli#history(context, image, Callback, OnError) abort
   return s:docker(a:context, ['history', s:json, a:image], a:Callback, a:OnError)
 endfunction
 
-" The logs of a container or a compose project, stdout and stderr in order.
+" The command of the logs of a container or a compose project, stdout and stderr in order.
 " opts: {follow, since, tail}, tail defaults to g:docker_logs_tail, -1 for all.
-" Callback(text) is called with complete lines (newline separated): once when done, as they
-" arrive when following.
-function! docker#cli#logs(context, kind, name, opts, Callback, OnError) abort
+function! docker#cli#logs_cmd(context, kind, name, opts) abort
   let args = a:kind ==# 'compose' ? ['compose', '--project-name', a:name, 'logs', '--no-color'] : ['logs']
-  call add(args, '--tail=' . get(a:opts, 'tail', docker#util#config('logs_tail')))
+  call add(args, '--tail=' . get(a:opts, 'tail', resource#config('docker', 'logs_tail')))
   if get(a:opts, 'since', '') !=# ''
     call add(args, '--since=' . a:opts.since)
   endif
@@ -126,44 +119,7 @@ function! docker#cli#logs(context, kind, name, opts, Callback, OnError) abort
     call add(args, a:name)
   endif
   " The output of the container goes to both, merged to keep the order
-  let cmd = ['sh', '-c', join(map(docker#cli#cmd(a:context, args), {_, arg -> s:shellescape(arg)})) . ' 2>&1']
-
-  if get(a:opts, 'follow', 0)
-    " Output arrives in arbitrary chunks, only complete lines are emitted
-    let state = {'pending': ''}
-    let opts = {
-          \ 'on_out': {data -> s:emit_lines(state, data, a:Callback)},
-          \ 'on_exit': {code, out, err -> state.pending ==# '' ? 0 : a:Callback(state.pending)},
-          \ }
-  else
-    let opts = {'on_exit': {code, out, err -> s:logs_done(code, out, a:Callback, a:OnError)}}
-  endif
-  let job = docker#compat#job_start(cmd, opts)
-  if empty(job)
-    call docker#util#notify('Failed to run docker: ' . join(cmd), 'error')
-  endif
-  return job
-endfunction
-
-function! s:emit_lines(state, data, Callback) abort
-  let a:state.pending .= a:data
-  let last_newline = strridx(a:state.pending, "\n")
-  if last_newline >= 0
-    let lines = strpart(a:state.pending, 0, last_newline)
-    let a:state.pending = strpart(a:state.pending, last_newline + 1)
-    call a:Callback(lines)
-  endif
-endfunction
-
-function! s:logs_done(code, out, Callback, OnError) abort
-  let text = substitute(a:out, '\n$', '', '')
-  if a:code != 0
-    if a:OnError isnot v:null
-      call a:OnError(text)
-    endif
-  else
-    call a:Callback(text)
-  endif
+  return ['sh', '-c', join(map(docker#cli#cmd(a:context, args), {_, arg -> s:shellescape(arg)})) . ' 2>&1']
 endfunction
 
 " Remove a resource, see the formatters for the items.
@@ -213,6 +169,6 @@ endfunction
 " Use a context for docker.nvim only, docker's current context is left as is; '' to use it again.
 function! docker#cli#use_context(name) abort
   let s:context = a:name
-  call mkdir(docker#compat#state_dir(), 'p')
+  call mkdir(resource#state_dir(), 'p')
   call writefile([json_encode({'context': a:name ==# '' ? v:null : a:name})], s:state_file())
 endfunction

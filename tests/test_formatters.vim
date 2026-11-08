@@ -53,11 +53,3 @@ function! Test_types_list_the_kinds() abort
   call assert_equal(['compose', 'containers', 'images', 'networks', 'volumes'],
         \ map(docker#formatters#get('types').format([]), 'v:val.item.name'))
 endfunction
-
-function! Test_format_table_aligns_and_truncates() abort
-  let [header, rows] = docker#resources#format_table(['NAME', 'X'],
-        \ [{'row': ['ä', repeat('y', 120)], 'item': {}, 'highlights': {}, 'diagnostics': []}])
-  call assert_equal('NAME  X' . repeat(' ', 98), header.formatted)
-  call assert_equal('ä     ' . repeat('y', 96) . '...', rows[0].formatted)
-  call assert_equal([[0, 5], [7, 106]], rows[0].ranges)
-endfunction

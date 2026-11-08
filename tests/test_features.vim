@@ -30,7 +30,7 @@ function! Test_lists_render_the_containers_of_the_context_with_the_header() abor
   call Open(s:containers)
   call assert_equal(4, len(Lines()))
   call assert_match('^shop-web-1 \+nginx:1\.27 \+Up 2 hours', Lines()[0])
-  call assert_match('NAME \+IMAGE \+STATUS', docker#compat#get_header(win_getid()))
+  call assert_match('NAME \+IMAGE \+STATUS', resource#compat#header(win_getid()))
   call assert_equal(['--context ctx-a ps --all --format={{json .}}'], Calls())
   call assert_equal('acwrite', &buftype)
   call assert_equal(0, &wrap)
@@ -38,8 +38,8 @@ endfunction
 
 function! Test_lists_show_unhealthy_and_failed_containers_as_diagnostics() abort
   call Open(s:containers)
-  let signs = sign_getplaced(bufnr(), {'group': 'docker'})[0].signs
-  call assert_equal([[2, 'DockerError'], [3, 'DockerError']], map(copy(signs), '[v:val.lnum, v:val.name]'))
+  let signs = sign_getplaced(bufnr(), {'group': 'resource'})[0].signs
+  call assert_equal([[2, 'DockerSignError'], [3, 'DockerSignError']], map(copy(signs), '[v:val.lnum, v:val.name]'))
   normal ]d
   call assert_equal(2, line('.'))
   normal ]d
@@ -47,7 +47,9 @@ function! Test_lists_show_unhealthy_and_failed_containers_as_diagnostics() abort
   normal ]d
   call assert_equal(2, line('.'))
   execute "normal \<C-w>d"
-  call assert_equal([{'msg': 'The container is unhealthy', 'level': 'error'}], s:messages)
+  let floats = resource#compat#floats()
+  call assert_equal([['The container is unhealthy']], map(copy(floats), 'v:val[1]'))
+  call resource#compat#close_float(floats[0][0])
 endfunction
 
 function! Test_lists_are_pinned_to_the_current_context_when_opened_without_one() abort
@@ -97,13 +99,13 @@ endfunction
 function! Test_lists_are_reloaded_periodically_when_watched() abort
   call Open(s:containers)
   normal gw
-  call assert_match('⟳ 0.2s', docker#compat#get_header(win_getid()))
+  call assert_match('⟳ 0.2s', resource#compat#header(win_getid()))
   " The watched buffer is not current, in Vim's Ex mode (-es) it is never in Normal mode
   new
   call WaitCall('ps --all', 3)
   close
   normal gw
-  call assert_notmatch('⟳', docker#compat#get_header(win_getid()))
+  call assert_notmatch('⟳', resource#compat#header(win_getid()))
 endfunction
 
 function! Test_lists_highlight_the_rows_a_watched_reload_changed() abort
@@ -112,17 +114,17 @@ function! Test_lists_highlight_the_rows_a_watched_reload_changed() abort
   normal gw
   let buf = bufnr()
   new
-  call WaitFor({-> !empty(docker#compat#marks(buf, 'changed'))}, 'the changed rows')
-  call assert_equal([2], map(docker#compat#marks(buf, 'changed'), 'v:val.lnum'))
+  call WaitFor({-> !empty(resource#compat#highlighted_lines(buf, 'changed'))}, 'the changed rows')
+  call assert_equal([2], resource#compat#highlighted_lines(buf, 'changed'))
   close
   normal gw
 endfunction
 
 function! Test_lists_header_is_removed_from_windows_showing_other_buffers() abort
   call Open(s:containers)
-  call assert_notequal('', docker#compat#get_header(win_getid()))
+  call assert_notequal('', resource#compat#header(win_getid()))
   enew
-  call assert_equal('', docker#compat#get_header(win_getid()))
+  call assert_equal('', resource#compat#header(win_getid()))
 endfunction
 
 " ------------------------------------------------------------------ navigation
@@ -146,11 +148,11 @@ function! Test_navigation_gL_follows_the_logs_and_ctrl_c_stops() abort
   call PressOn('shop-web-1', 'gL')
   call WaitBufName(s:containers . '/shop-web-1/logs?follow=true')
   call WaitFor({-> getline(1) ==# 'first'}, 'the first line')
-  call assert_equal('Waiting for new logs... (Ctrl+C to stop)', docker#compat#get_virt_text(bufnr(), 'logstatus'))
-  let dbuf = docker#buffer#get(bufnr())
+  call assert_equal('Waiting for new logs... (Ctrl+C to stop)', Status())
+  let dbuf = resource#get(bufnr())
   execute "normal \<C-c>"
   call assert_equal({}, dbuf.jobs)
-  call assert_match('^Stopped following logs', docker#compat#get_virt_text(bufnr(), 'logstatus'))
+  call assert_match('^Stopped following logs', Status())
 endfunction
 
 function! Test_navigation_gd_inspects_the_item_read_only() abort
@@ -215,7 +217,7 @@ endfunction
 
 function! Test_navigation_help_lists_the_keymaps() abort
   call Open(s:containers)
-  let lines = docker#help#lines()
+  let lines = resource#buffer#help_lines(resource#provider('docker'))
   call assert_equal('Keymaps', lines[0])
   call assert_equal('  -        go to the parent buffer', lines[1])
   call assert_notequal(-1, index(lines, '  gra      operations on the item under the cursor, or the selected ones'))
@@ -279,14 +281,14 @@ endfunction
 function! Test_deleted_lines_stay_visible_until_written() abort
   call Open(s:containers)
   call PressOn('migrate', 'dd')
-  call docker#buffer#on_text_changed(bufnr())
+  doautocmd TextChanged
   " Above the row that followed it
-  call assert_equal([3], uniq(map(docker#compat#marks(bufnr(), 'pending'), 'v:val.lnum')))
+  call assert_equal([[3, 1]], map(resource#compat#get_virt_lines(bufnr()), '[v:val[0], v:val[2]]'))
   call cursor(3, 1)
   normal dd
-  call docker#buffer#on_text_changed(bufnr())
+  doautocmd TextChanged
   " Below the last line without one
-  call assert_equal([2], uniq(map(docker#compat#marks(bufnr(), 'pending'), 'v:val.lnum')))
+  call assert_equal([[2, 0]], map(resource#compat#get_virt_lines(bufnr()), '[v:val[0], v:val[2]]'))
 endfunction
 
 " ------------------------------------------------------------------ operations

@@ -8,11 +8,12 @@ For Kubernetes, see [kube.nvim](https://github.com/kezhenxu94/kube.nvim), the sa
 
 ## Installation
 
-Requirements: Vim >= 9.1 or Neovim >= 0.11, and `docker` in `$PATH` (`docker compose` for compose projects). No other plugin dependencies.
+Requirements: Vim >= 9.1 or Neovim >= 0.11, and `docker` in `$PATH` (`docker compose` for compose projects), and [resource.vim](https://github.com/kezhenxu94/resource.vim), the core shared with kube.nvim.
 
 With Vim's packages (`:help packages`):
 
 ```sh
+git clone https://github.com/kezhenxu94/resource.vim ~/.vim/pack/plugins/start/resource.vim
 git clone https://github.com/kezhenxu94/docker.nvim ~/.vim/pack/plugins/start/docker.nvim
 vim -u NONE -c "helptags ~/.vim/pack/plugins/start/docker.nvim/doc" -c q
 ```
@@ -20,7 +21,7 @@ vim -u NONE -c "helptags ~/.vim/pack/plugins/start/docker.nvim/doc" -c q
 With Neovim's built-in plugin manager (`:help vim.pack`, Neovim >= 0.12):
 
 ```lua
-vim.pack.add({ "https://github.com/kezhenxu94/docker.nvim" })
+vim.pack.add({ "https://github.com/kezhenxu94/resource.vim", "https://github.com/kezhenxu94/docker.nvim" })
 ```
 
 Nothing to set up, the [configuration](#configuration) is optional.
@@ -112,5 +113,5 @@ let g:docker_highlights = {}
 
 ## Contributing
 
-* `make test`: Tests in headless Vim and Neovim against a fake `docker` (`tests/bin/docker`), never a real daemon, `make test EDITORS=nvim` in one of them.
+* `make test`: Tests in headless Vim and Neovim against a fake `docker` (`tests/bin/docker`), never a real daemon, `make test EDITORS=nvim` in one of them. They use the resource.vim checkout `RESOURCE_VIM`, `../resource.vim` by default.
 * `make demo`: Record the demo with [asciinema](https://asciinema.org) in tmux, against the containers of `demo/compose.yaml` on the current docker context, `docker compose -p docker-nvim-demo down -v` removes them.

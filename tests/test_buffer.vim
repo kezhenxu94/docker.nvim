@@ -18,11 +18,11 @@ function! Test_parse_name() abort
         \ 'name': 'web',
         \ 'subresource': 'logs',
         \ 'params': {'follow': v:true, 'tail': '10'},
-        \ }, docker#buffer#parse_name('docker://context/ctx%2Fa%3Ab/containers/web/logs?follow&tail=10'))
+        \ }, docker#provider#parse('docker://context/ctx%2Fa%3Ab/containers/web/logs?follow&tail=10'))
 endfunction
 
 function! Test_parse_name_requires_a_context() abort
-  call assert_match('^Invalid buffer name format', s:error({-> docker#buffer#parse_name('docker://containers')}))
+  call assert_match('^Invalid buffer name format', s:error({-> docker#provider#parse('docker://containers')}))
 endfunction
 
 function! Test_buf_name_round_trips_with_parse_name() abort
@@ -30,18 +30,13 @@ function! Test_buf_name_round_trips_with_parse_name() abort
         \ 'params': {'project': 'shop', 'status': 'running'}})
   call assert_equal('docker://context/ctx%2fa/containers?project=shop&status=running', name)
   call assert_equal({'context': 'ctx/a', 'kind': 'containers', 'name': '', 'subresource': '',
-        \ 'params': {'project': 'shop', 'status': 'running'}}, docker#buffer#parse_name(name))
-endfunction
-
-function! Test_uri_encode_bytes() abort
-  call assert_equal('ctx%2fa%3ab%c3%a4', docker#util#uri_encode('ctx/a:bä'))
-  call assert_equal('ctx/a:bä', docker#util#uri_decode('ctx%2fa%3Ab%c3%a4'))
+        \ 'params': {'project': 'shop', 'status': 'running'}}, docker#provider#parse(name))
 endfunction
 
 function! s:canonical(name) abort
   call ResetDocker()
   call Respond('context show', {'stdout': "ctx-a\n"})
-  return docker#buffer#canonical_name(a:name)
+  return docker#provider#canonical(a:name)
 endfunction
 
 function! Test_canonical_name_pins_names_without_a_context_to_the_current_one() abort
@@ -51,7 +46,7 @@ endfunction
 function! Test_canonical_name_uses_the_context_switched_to() abort
   call ResetDocker()
   call docker#cli#use_context('remote')
-  call assert_equal('docker://context/remote/images', docker#buffer#canonical_name('docker://images'))
+  call assert_equal('docker://context/remote/images', docker#provider#canonical('docker://images'))
 endfunction
 
 function! Test_canonical_name_lists_the_kinds_without_a_kind() abort
@@ -65,5 +60,5 @@ endfunction
 
 function! Test_canonical_name_fails_without_a_context() abort
   call ResetDocker()
-  call assert_equal('No current docker context', s:error({-> docker#buffer#canonical_name('docker://images')}))
+  call assert_equal('No current docker context', s:error({-> docker#provider#canonical('docker://images')}))
 endfunction

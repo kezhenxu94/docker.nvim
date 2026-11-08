@@ -5,8 +5,10 @@
 " the results to $TEST_RESULT.
 let s:root = expand('<sfile>:p:h:h')
 let s:spec = argv(0)
-execute 'set runtimepath^=' . fnameescape(s:root)
+" resource.vim, see the Makefile
+execute 'set runtimepath^=' . fnameescape(s:root) . ',' . fnameescape(fnamemodify($RESOURCE_VIM, ':p'))
 set nomore
+runtime plugin/resource.vim
 runtime plugin/docker.vim
 " Against the fake docker of tests/bin, never a real daemon
 let $PATH = s:root . '/tests/bin:' . $PATH

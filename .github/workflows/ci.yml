@@ -22,9 +22,13 @@ jobs:
           - { editor: nvim, neovim: true, version: nightly }
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: kezhenxu94/resource.vim
+          path: resource.vim
       - uses: rhysd/action-setup-vim@v1
         id: vim
         with:
           neovim: ${{ matrix.neovim }}
           version: ${{ matrix.version }}
-      - run: make test EDITORS=${{ steps.vim.outputs.executable }}
+      - run: make test EDITORS=${{ steps.vim.outputs.executable }} RESOURCE_VIM=resource.vim

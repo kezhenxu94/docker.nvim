@@ -23,7 +23,7 @@ let s:actions = {
       \ 'container': {
       \   'drill_down': {dbuf, item -> s:show_logs('containers', dbuf, item, 0)},
       \   'show_logs': function('s:show_logs', ['containers']),
-      \   'exec': {dbuf, item -> docker#exec#open(dbuf.context, item.name)},
+      \   'exec': {dbuf, item -> s:open(dbuf, {'kind': 'containers', 'name': item.name, 'subresource': 'exec'})},
       \ },
       \ 'image': {
       \   'drill_down': {dbuf, item -> s:open(dbuf, {'kind': 'images', 'name': item.name, 'subresource': 'history'})},

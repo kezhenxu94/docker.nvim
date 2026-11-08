@@ -19,7 +19,8 @@ in buffers, with their logs, `docker inspect` and shells. Delete a line and
 compose project down.
 
 Requirements: Vim >= 9.1 or Neovim >= 0.11, and `docker` in $PATH,
-`docker compose` for compose projects.
+`docker compose` for compose projects, and resource.vim, the core shared with
+kube.nvim: https://github.com/kezhenxu94/resource.vim, see |resource.vim|.
 
 Nothing to set up, the |:Docker| command and the `docker://` buffers are
 defined when the plugin is loaded, see |docker-config| to change the defaults.
@@ -169,5 +170,7 @@ colorscheme's by default:
                       |hl-ToolbarButton|
     DockerDeleted     deleted lines, until written (DiffDelete)
     DockerChanged     rows a watched reload changed (DiffChange)
+    DockerSignError   the signs of unhealthy containers (DockerFailed,
+    DockerSignWarn    DockerPending), see |resource-highlights|
 
  vim:tw=78:ts=8:ft=help:norl:

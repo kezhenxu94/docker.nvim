@@ -48,6 +48,6 @@ function! docker#commands#run(args) abort
   elseif command ==# 'context'
     call docker#ctx(get(args, 1, ''))
   else
-    call docker#util#notify('No such command: ' . command, 'error')
+    call resource#notify('No such command: ' . command, 'error')
   endif
 endfunction

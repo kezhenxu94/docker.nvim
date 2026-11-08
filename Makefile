@@ -1,5 +1,7 @@
 EDITORS ?= vim nvim
 SPECS ?= $(wildcard tests/test_*.vim)
+# The checkout of https://github.com/kezhenxu94/resource.vim
+RESOURCE_VIM ?= ../resource.vim
 
 .PHONY: test demo
 
@@ -13,7 +15,7 @@ test:
 		esac; \
 		for spec in $(SPECS); do \
 			tmp=$$(mktemp -d); \
-			TEST_RESULT=$$tmp/result XDG_STATE_HOME=$$tmp/state XDG_DATA_HOME=$$tmp/data XDG_CONFIG_HOME=$$tmp/config \
+			TEST_RESULT=$$tmp/result RESOURCE_VIM=$(RESOURCE_VIM) XDG_STATE_HOME=$$tmp/state XDG_DATA_HOME=$$tmp/data XDG_CONFIG_HOME=$$tmp/config \
 				$$cmd -S tests/runner.vim $$spec </dev/null || failed=1; \
 			cat $$tmp/result 2>/dev/null || { echo "$$spec: did not finish"; failed=1; }; \
 			rm -rf $$tmp; \

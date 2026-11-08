@@ -1,36 +1,12 @@
 " Operations on the items of buffer rows, offered by gra: [{title, run: Fn()}].
 
-function! s:describe_targets(items) abort
-  let names = map(copy(a:items), {_, item -> item.kind . ' ' . get(item, 'ref', item.name)})
-  if len(names) > 3
-    return printf('%s and %d more', join(names[:2], ', '), len(names) - 3)
-  endif
-  return join(names, ', ')
-endfunction
-
-" Run a docker command on every item (Call(item, Callback, OnError)), then reload the buffer.
+" Run Call(item) on every item, it returns the job of the docker command, then reload the buffer.
 function! s:run(dbuf, items, Call) abort
-  let state = {'remaining': len(a:items)}
-  for item in a:items
-    call a:Call(item, {result, ... -> s:finished(a:dbuf, state, result)},
-          \ {err -> docker#util#notify(err, 'error')})
-  endfor
-endfunction
-
-function! s:finished(dbuf, state, result) abort
-  if a:result isnot v:null && trim(a:result) !=# ''
-    call docker#util#notify(trim(a:result))
-  endif
-  let a:state.remaining -= 1
-  if a:state.remaining == 0
-    call docker#buffer#load(a:dbuf)
-  endif
+  call resource#run(a:dbuf, a:items, a:Call)
 endfunction
 
 function! s:confirmed(dbuf, items, verb, Call) abort
-  if docker#util#confirm(printf('%s %s (context: %s)?', a:verb, s:describe_targets(a:items), a:dbuf.context))
-    call s:run(a:dbuf, a:items, a:Call)
-  endif
+  call resource#run(a:dbuf, a:items, a:Call, a:verb . ' ' . resource#describe(a:dbuf, a:items))
 endfunction
 
 function! s:title(verb) abort
@@ -63,13 +39,13 @@ function! s:verb_operations(dbuf, items, verbs, Call) abort
   return operations
 endfunction
 
-function! s:call_verb(Call, context, verb, item, Callback, OnError) abort
-  return a:Call(a:context, a:verb, a:item.name, a:Callback, a:OnError)
+function! s:call_verb(Call, context, verb, item) abort
+  return a:Call(a:context, a:verb, a:item.name, v:null, v:null)
 endfunction
 
 function! s:pull(dbuf, items) abort
-  call docker#util#notify('Pulling ' . s:describe_targets(a:items))
-  call s:run(a:dbuf, a:items, {item, Callback, OnError -> docker#cli#pull(a:dbuf.context, item.ref, Callback, OnError)})
+  call resource#notify('Pulling ' . resource#describe(a:dbuf, a:items))
+  call s:run(a:dbuf, a:items, {item -> docker#cli#pull(a:dbuf.context, item.ref, v:null, v:null)})
 endfunction
 
 " The operations for the items of the given buffer rows, all of the same kind.
@@ -108,7 +84,7 @@ function! docker#operations#for_items(dbuf, items) abort
   if has_key(s:plurals, kind)
     let verb = kind ==# 'compose' ? 'Down' : 'Remove'
     call add(operations, {'title': verb, 'run': function('s:confirmed', [a:dbuf, a:items, verb,
-          \ {item, Callback, OnError -> docker#cli#remove(a:dbuf.context, item, Callback, OnError)}])})
+          \ {item -> docker#cli#remove(a:dbuf.context, item, v:null, v:null)}])})
   endif
 
   if len(a:items) > 1
@@ -118,17 +94,4 @@ function! docker#operations#for_items(dbuf, items) abort
     endfor
   endif
   return operations
-endfunction
-
-" Pick an operation for the items of the rows in [first, last] and run it.
-function! docker#operations#select(dbuf, first, last) abort
-  let operations = docker#operations#for_items(a:dbuf, docker#resources#items_in_rows(a:dbuf, a:first, a:last))
-  if empty(operations)
-    call docker#util#notify('No operations', 'warn')
-    return
-  endif
-  let choice = docker#util#select(map(copy(operations), 'v:val.title'), 'Operation')
-  if choice >= 0
-    call operations[choice].run()
-  endif
 endfunction
